@@ -6,7 +6,14 @@ from .exceptions import BhavcopNotAvailable, DownloadError, PybhavError, Session
 from .fetcher import NSEHttpFetcher
 from .holidays import NSEHolidayCalendar, nse_calendar
 from .parser import NSECsvParser
-from .protocols import BhavcopCache, BhavcopFetcher, BhavcopParser
+from .protocols import (
+    BhavcopCache,
+    BhavcopCalendar,
+    BhavcopFetcher,
+    BhavcopParser,
+    BhavcopSchedule,
+)
+from .schedule import NSEBhavSchedule, nse_schedule
 
 __version__ = "0.1.0"
 __all__ = [
@@ -19,8 +26,10 @@ __all__ = [
     "SessionError",
     # Protocols — implement these to extend pybhav
     "BhavcopCache",
+    "BhavcopCalendar",
     "BhavcopFetcher",
     "BhavcopParser",
+    "BhavcopSchedule",
     # Concrete implementations
     "FileCache",
     "NullCache",
@@ -29,4 +38,7 @@ __all__ = [
     # Holiday calendar
     "NSEHolidayCalendar",
     "nse_calendar",
+    # Publish-time schedule
+    "NSEBhavSchedule",
+    "nse_schedule",
 ]

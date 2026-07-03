@@ -19,6 +19,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import FrozenSet, Iterator, Optional, Sequence
 
+from .protocols import BhavcopCalendar
+
 
 # ---------------------------------------------------------------------------
 # Built-in holiday data (NSE CM segment — equities)
@@ -84,7 +86,7 @@ _HOLIDAYS_2026: dict[date, str] = {
 _ALL_HOLIDAYS: dict[date, str] = {**_HOLIDAYS_2024, **_HOLIDAYS_2025, **_HOLIDAYS_2026}
 
 
-class NSEHolidayCalendar:
+class NSEHolidayCalendar(BhavcopCalendar):
     """NSE market holiday calendar for the CM (equities) segment.
 
     The calendar ships with built-in holiday data for 2024-2026 (sourced from
@@ -121,18 +123,32 @@ class NSEHolidayCalendar:
 
     def __init__(
         self,
+        holiday_data: dict[date, str] | None = None,
         extra_holidays: Sequence[date] | None = None,
     ) -> None:
-        # Start with a mutable copy of the built-in name mapping
-        self._holiday_names: dict[date, str] = dict(_ALL_HOLIDAYS)
+        """Initialise the calendar.
 
-        # Merge extra holidays; they get a generic name if not supplied as a dict
+        Args:
+            holiday_data:   Complete date->name mapping to use as the base
+                            dataset. Pass ``None`` (default) to use the
+                            built-in 2024-2026 NSE holiday data. Pass your
+                            own dict to fully replace it (OCP — no source
+                            edit required to support a new year or data source).
+            extra_holidays: Additional dates to merge on top of *holiday_data*.
+                            These receive the name ``"Exchange Holiday"`` unless
+                            *holiday_data* already contains them.
+        """
+        # OCP: caller can supply a completely different dataset
+        base = holiday_data if holiday_data is not None else dict(_ALL_HOLIDAYS)
+        self._holiday_names: dict[date, str] = dict(base)
+
+        # Merge extra holidays; they get a generic name if not in base
         if extra_holidays:
             for d in extra_holidays:
                 if d not in self._holiday_names:
                     self._holiday_names[d] = "Exchange Holiday"
 
-        # Keep a frozenset of dates for fast membership tests
+        # Keep a frozenset of dates for O(1) membership tests
         self._holidays: FrozenSet[date] = frozenset(self._holiday_names)
 
     # ------------------------------------------------------------------
