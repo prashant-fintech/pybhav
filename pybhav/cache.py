@@ -1,10 +1,16 @@
-"""Local file cache keyed by (segment, date)."""
+"""Concrete BhavcopCache implementations."""
+
+from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
 
+from .protocols import BhavcopCache
 
-class Cache:
+
+class FileCache(BhavcopCache):
+    """Persist bhavcopy data as CSV files under a local directory."""
+
     def __init__(self, cache_dir: str | Path):
         self.root = Path(cache_dir).expanduser()
         self.root.mkdir(parents=True, exist_ok=True)
@@ -18,5 +24,18 @@ class Cache:
     def get(self, segment: str, dt: date) -> bytes:
         return self._path(segment, dt).read_bytes()
 
-    def put(self, segment: str, dt: date, csv_bytes: bytes) -> None:
-        self._path(segment, dt).write_bytes(csv_bytes)
+    def put(self, segment: str, dt: date, data: bytes) -> None:
+        self._path(segment, dt).write_bytes(data)
+
+
+class NullCache(BhavcopCache):
+    """No-op cache — every lookup misses and puts are discarded."""
+
+    def has(self, segment: str, dt: date) -> bool:
+        return False
+
+    def get(self, segment: str, dt: date) -> bytes:
+        raise KeyError(f"NullCache has no entry for {segment}/{dt}")
+
+    def put(self, segment: str, dt: date, data: bytes) -> None:
+        pass

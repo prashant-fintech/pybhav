@@ -1,11 +1,11 @@
 import io
 import zipfile
 from datetime import date
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from pybhav.downloader import fetch_csv, _extract_csv
+from pybhav.fetcher import NSEHttpFetcher, _ZipExtractor
 from pybhav.exceptions import BhavcopNotAvailable, DownloadError
 
 
@@ -16,28 +16,29 @@ def _make_zip(csv_content: str) -> bytes:
     return buf.getvalue()
 
 
-def test_extract_csv():
+def test_zip_extractor_returns_csv_bytes():
     csv = "SYMBOL,OPEN\nRELIANCE,2900"
-    result = _extract_csv(_make_zip(csv), "http://example.com")
+    result = _ZipExtractor().extract(_make_zip(csv), "http://example.com")
     assert b"RELIANCE" in result
 
 
-def test_extract_csv_bad_zip():
+def test_zip_extractor_bad_zip_raises_download_error():
     with pytest.raises(DownloadError, match="Invalid ZIP"):
-        _extract_csv(b"notazip", "http://example.com")
+        _ZipExtractor().extract(b"notazip", "http://example.com")
 
 
-def test_fetch_csv_404_raises_not_available():
+def test_fetch_404_raises_not_available():
     mock_resp = MagicMock()
     mock_resp.status_code = 404
     mock_session = MagicMock()
     mock_session.get.return_value = mock_resp
 
+    fetcher = NSEHttpFetcher(session=mock_session)
     with pytest.raises(BhavcopNotAvailable):
-        fetch_csv("CM", date(2025, 6, 28), session=mock_session)
+        fetcher.fetch("CM", date(2025, 6, 28))
 
 
-def test_fetch_csv_success():
+def test_fetch_success_returns_csv_bytes():
     csv = "SYMBOL,OPEN\nINFY,1800"
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -46,5 +47,6 @@ def test_fetch_csv_success():
     mock_session = MagicMock()
     mock_session.get.return_value = mock_resp
 
-    result = fetch_csv("CM", date(2025, 6, 30), session=mock_session)
+    fetcher = NSEHttpFetcher(session=mock_session)
+    result = fetcher.fetch("CM", date(2025, 6, 30))
     assert b"INFY" in result

@@ -9,7 +9,7 @@ description = "Download NSE bhavcopy (end-of-day market data) for Indian equitie
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
-authors = [{ name = "Prashant Singh", email = "prashant21box@gmail.com" }]
+authors = [{ name = "Prashant Singh", email = "box_prashant@outlook.com" }]
 keywords = ["nse", "bhavcopy", "india", "stock market", "finance", "equity"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -36,8 +36,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/prashant21box/pybhav"
-Issues = "https://github.com/prashant21box/pybhav/issues"
+Homepage = "https://github.com/prashant-fintech/pybhav"
+Issues = "https://github.com/prashant-fintech/pybhav/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["pybhav"]
