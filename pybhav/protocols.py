@@ -38,6 +38,13 @@ class BhavcopFetcher(ABC):
     def fetch(self, segment: str, dt: date) -> bytes: ...
 
 
+class AsyncBhavcopFetcher(ABC):
+    """Interface for fetching raw bhavcopy CSV bytes asynchronously."""
+
+    @abstractmethod
+    async def fetch(self, segment: str, dt: date) -> bytes: ...
+
+
 class BhavcopParser(ABC):
     """Interface for parsing raw bhavcopy bytes into a DataFrame."""
 
