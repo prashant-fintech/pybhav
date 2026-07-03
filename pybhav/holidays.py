@@ -132,13 +132,13 @@ class NSEHolidayCalendar(BhavcopCalendar):
             holiday_data:   Complete date->name mapping to use as the base
                             dataset. Pass ``None`` (default) to use the
                             built-in 2024-2026 NSE holiday data. Pass your
-                            own dict to fully replace it (OCP — no source
-                            edit required to support a new year or data source).
+                            own dict to fully replace it without editing
+                            the library source.
             extra_holidays: Additional dates to merge on top of *holiday_data*.
                             These receive the name ``"Exchange Holiday"`` unless
                             *holiday_data* already contains them.
         """
-        # OCP: caller can supply a completely different dataset
+        # Caller can supply a completely different dataset
         base = holiday_data if holiday_data is not None else dict(_ALL_HOLIDAYS)
         self._holiday_names: dict[date, str] = dict(base)
 

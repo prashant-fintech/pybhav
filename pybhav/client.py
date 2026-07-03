@@ -9,7 +9,7 @@ All behaviour is provided by four strategies injected via the constructor:
 - :class:`~pybhav.protocols.BhavcopSchedule` — publish-time schedule
 
 The client itself contains *no* business logic about holidays, timezones, or
-publish times — it only orchestrates the pipeline (SRP + DIP).
+publish times — it only orchestrates the pipeline.
 """
 
 from __future__ import annotations
@@ -44,9 +44,8 @@ class NSEBhavcopy:
     """High-level client for downloading NSE bhavcopy data.
 
     All five dependencies are injected via the constructor — swap any of them
-    to extend behaviour without modifying this class (Open/Closed Principle).
-    The client depends exclusively on abstractions, never on concretions
-    (Dependency Inversion Principle).
+    to extend behaviour without modifying this class.
+    The client depends exclusively on abstractions, never on concretions.
 
     Args:
         cache_dir: Directory for the default :class:`~pybhav.cache.FileCache`.
@@ -204,7 +203,7 @@ def _check_trading_day(dt: date, calendar: BhavcopCalendar) -> None:
     """Raise :exc:`BhavcopNotAvailable` with a clear reason for weekends / holidays.
 
     Depends on the :class:`~pybhav.protocols.BhavcopCalendar` abstraction —
-    no concrete class is referenced here (DIP).
+    no concrete class is referenced here.
 
     The exception message always includes:
     - The date and day-of-week

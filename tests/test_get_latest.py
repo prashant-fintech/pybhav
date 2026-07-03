@@ -159,7 +159,7 @@ class TestGetLatest:
         fetcher.fetch.assert_called_once_with("CM", _BEFORE_HOLI)
 
     def test_custom_schedule_is_respected(self):
-        """Any BhavcopSchedule implementation can be injected (DIP test)."""
+        """Any BhavcopSchedule implementation can be injected."""
         from pybhav.protocols import BhavcopCalendar, BhavcopSchedule
 
         class AlwaysFridaySchedule(BhavcopSchedule):

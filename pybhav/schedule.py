@@ -5,7 +5,7 @@ trading date's bhavcopy is currently downloadable, based on the NSE
 publish time of 19:00 IST.
 
 All time-zone and cutoff constants live here — ``client.py`` has zero
-knowledge of IST, clocks, or publish times (SRP fix).
+knowledge of IST, clocks, or publish times.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 
 #: NSE publishes each day's bhavcopy after this time (IST).
 #: Changing this constant is the *only* edit required if NSE shifts the
-#: publish window — no other file needs to change (OCP).
+#: publish window — no other file needs to change.
 _BHAVCOPY_CUTOFF: time = time(19, 0)
 
 
@@ -43,7 +43,7 @@ class NSEBhavSchedule(BhavcopSchedule):
 
     This class is injected into :class:`~pybhav.client.NSEBhavcopy` via its
     ``schedule`` constructor kwarg, keeping time logic out of the client
-    (Single Responsibility) and making it swappable (Open/Closed + Strategy).
+    keeping time logic out of the client and making it swappable.
 
     Args:
         clock: Optional ``Callable[[], datetime]`` that returns the current
@@ -62,7 +62,7 @@ class NSEBhavSchedule(BhavcopSchedule):
         # Production — clock defaults to now()
         schedule = NSEBhavSchedule()
 
-        # Custom cutoff subclass (OCP extension, no modification)
+        # Custom cutoff subclass — extend without modification
         class EarlySchedule(NSEBhavSchedule):
             _CUTOFF = time(17, 0)  # hypothetical earlier publish time
 

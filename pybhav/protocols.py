@@ -2,7 +2,7 @@
 
 Each ABC defines a single, narrow contract. Implement any of them and
 inject your implementation into ``NSEBhavcopy`` via its constructor to
-swap behaviour without touching library code (Open/Closed Principle).
+swap behaviour without touching library code.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class BhavcopParser(ABC):
 
 
 # ---------------------------------------------------------------------------
-# New protocols (ISP + DIP fixes)
+# New protocols
 # ---------------------------------------------------------------------------
 
 class BhavcopCalendar(ABC):
@@ -95,7 +95,7 @@ class BhavcopSchedule(ABC):
 
     Encapsulates the rule that decides *which* trading date's bhavcopy
     is currently available, decoupling that logic from both the client
-    and the calendar (Single Responsibility + Strategy pattern).
+    and the calendar.
 
     The concrete default is :class:`pybhav.schedule.NSEBhavSchedule`.
     """
