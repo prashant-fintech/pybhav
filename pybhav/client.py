@@ -11,6 +11,7 @@ import pandas as pd
 from .cache import FileCache, NullCache
 from .exceptions import BhavcopNotAvailable
 from .fetcher import NSEHttpFetcher
+from .holidays import NSEHolidayCalendar, nse_calendar
 from .parser import NSECsvParser
 from .protocols import BhavcopCache, BhavcopFetcher, BhavcopParser
 
@@ -42,6 +43,7 @@ class NSEBhavcopy:
         cache: BhavcopCache | None = None,
         fetcher: BhavcopFetcher | None = None,
         parser: BhavcopParser | None = None,
+        calendar: NSEHolidayCalendar | None = None,
     ):
         self._cache: BhavcopCache = cache or (
             FileCache(cache_dir) if cache_dir else NullCache()
@@ -50,6 +52,7 @@ class NSEBhavcopy:
             retries=retries, timeout=timeout
         )
         self._parser: BhavcopParser = parser or NSECsvParser()
+        self._calendar: NSEHolidayCalendar = calendar or nse_calendar
 
     def _load(self, segment: str, dt: date) -> bytes:
         if self._cache.has(segment, dt):
@@ -64,8 +67,12 @@ class NSEBhavcopy:
         Args:
             dt: Trading date as a ``date`` object or ``"YYYY-MM-DD"`` string.
             segment: One of ``CM``, ``FO``, ``CD``, ``SME``.
+
+        Raises:
+            BhavcopNotAvailable: If *dt* is a weekend or a known NSE holiday.
         """
         dt = _parse_date(dt)
+        _check_trading_day(dt, self._calendar)
         return self._parser.parse(self._load(segment, dt))
 
     def get_range(
@@ -106,8 +113,12 @@ class NSEBhavcopy:
 
         Bytes are served from the cache when available, so a second call for
         the same date does not re-hit the network.
+
+        Raises:
+            BhavcopNotAvailable: If *dt* is a weekend or a known NSE holiday.
         """
         dt = _parse_date(dt)
+        _check_trading_day(dt, self._calendar)
         data = self._load(segment, dt)
         dest = Path(dest)
         dest.mkdir(parents=True, exist_ok=True)
@@ -120,6 +131,45 @@ def _parse_date(dt: date | str) -> date:
     if isinstance(dt, str):
         return date.fromisoformat(dt)
     return dt
+
+
+_DAY_NAMES = [
+    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+]
+
+
+def _check_trading_day(dt: date, calendar: NSEHolidayCalendar) -> None:
+    """Raise :exc:`BhavcopNotAvailable` with a clear reason for weekends and holidays.
+
+    The exception message always includes:
+    - The date and day-of-week
+    - The specific reason (e.g. "Saturday", "Holi", "Republic Day")
+    - The next available NSE trading day
+    """
+    day_name = _DAY_NAMES[dt.weekday()]
+    next_td = calendar.next_trading_day(dt, inclusive=False)
+
+    if dt.weekday() == 5:  # Saturday
+        raise BhavcopNotAvailable(
+            f"NSE bhavcopy is not available for {dt.strftime('%d %b %Y')} ({day_name}). "
+            f"The exchange is closed on Saturdays. "
+            f"Next trading day: {next_td.strftime('%d %b %Y')} ({_DAY_NAMES[next_td.weekday()]})."
+        )
+
+    if dt.weekday() == 6:  # Sunday
+        raise BhavcopNotAvailable(
+            f"NSE bhavcopy is not available for {dt.strftime('%d %b %Y')} ({day_name}). "
+            f"The exchange is closed on Sundays. "
+            f"Next trading day: {next_td.strftime('%d %b %Y')} ({_DAY_NAMES[next_td.weekday()]})."
+        )
+
+    occasion = calendar.holiday_name(dt)
+    if occasion:
+        raise BhavcopNotAvailable(
+            f"NSE bhavcopy is not available for {dt.strftime('%d %b %Y')} ({day_name}). "
+            f"The exchange is closed for {occasion}. "
+            f"Next trading day: {next_td.strftime('%d %b %Y')} ({_DAY_NAMES[next_td.weekday()]})."
+        )
 
 
 def _date_range(start: date, end: date) -> Iterator[date]:

@@ -4,6 +4,7 @@ from .cache import FileCache, NullCache
 from .client import NSEBhavcopy
 from .exceptions import BhavcopNotAvailable, DownloadError, PybhavError, SessionError
 from .fetcher import NSEHttpFetcher
+from .holidays import NSEHolidayCalendar, nse_calendar
 from .parser import NSECsvParser
 from .protocols import BhavcopCache, BhavcopFetcher, BhavcopParser
 
@@ -25,4 +26,7 @@ __all__ = [
     "NullCache",
     "NSEHttpFetcher",
     "NSECsvParser",
+    # Holiday calendar
+    "NSEHolidayCalendar",
+    "nse_calendar",
 ]
