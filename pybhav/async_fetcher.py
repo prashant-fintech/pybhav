@@ -21,10 +21,8 @@ async def async_make_session(timeout: int = 10) -> AsyncSession:
         resp = await client.get(NSE_HOME)
         resp.raise_for_status()
     except errors.RequestsError as exc:
-        # curl_cffi AsyncSession doesn't have aclose(), it's managed via GC or explicit close if supported,
-        # but for safety we can just let it drop if it errors here.
-        if hasattr(client, "close"):
-            client.close()
+        # curl_cffi AsyncSession uses an async close() method
+        await client.close()
         raise SessionError(
             f"Failed to warm up async NSE session: {exc}"
         ) from exc
