@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Optional
 
 import pandas as pd
 
@@ -32,6 +32,7 @@ class NSEBhavcopy:
         cache: Override the cache entirely with any BhavcopCache.
         fetcher: Override the fetcher entirely with any BhavcopFetcher.
         parser: Override the parser entirely with any BhavcopParser.
+        calendar: Override the holiday calendar with any NSEHolidayCalendar.
     """
 
     def __init__(
@@ -103,6 +104,32 @@ class NSEBhavcopy:
                     raise
         return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
+    def get_latest(self, segment: str = "CM") -> pd.DataFrame:
+        """Download the latest *available* bhavcopy and return it as a DataFrame.
+
+        NSE publishes the bhavcopy after **19:00 IST** on each trading day.
+        This method works out the correct date automatically:
+
+        - If **today is a trading day** and the current IST time is **≥ 19:00**
+          → downloads **today's** bhavcopy.
+        - Otherwise (before 19:00, or today is a weekend/holiday)
+          → downloads the **most recent previous trading day's** bhavcopy.
+
+        Args:
+            segment: One of ``CM``, ``FO``, ``CD``, ``SME``. Defaults to ``CM``.
+
+        Returns:
+            A DataFrame for the latest available bhavcopy date.
+
+        Example::
+
+            nse = NSEBhavcopy()
+            df = nse.get_latest()           # always returns most recent data
+            df = nse.get_latest(segment="FO")
+        """
+        target = _latest_trading_date(self._calendar)
+        return self._parser.parse(self._load(segment, target))
+
     def download(
         self,
         dt: date | str,
@@ -131,6 +158,39 @@ def _parse_date(dt: date | str) -> date:
     if isinstance(dt, str):
         return date.fromisoformat(dt)
     return dt
+
+
+# IST = UTC +05:30
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+# Bhavcopy is published on NSE servers after this time each trading day (IST)
+_BHAVCOPY_CUTOFF = time(19, 0)  # 19:00 IST
+
+
+def _latest_trading_date(
+    calendar: NSEHolidayCalendar,
+    _now: Optional[datetime] = None,
+) -> date:
+    """Return the date of the latest available NSE bhavcopy.
+
+    Rules (all times in IST):
+    - If today is a trading day **and** current time >= 19:00 → use today.
+    - Otherwise → use the most recent previous trading day.
+
+    Args:
+        calendar: The holiday calendar used to determine trading days.
+        _now:     Override the current datetime (IST). Useful for testing.
+                  Defaults to ``datetime.now(_IST)``.
+    """
+    now_ist = _now if _now is not None else datetime.now(_IST)
+    today = now_ist.date()
+    current_time = now_ist.time().replace(tzinfo=None)  # naive for comparison
+
+    if calendar.is_trading_day(today) and current_time >= _BHAVCOPY_CUTOFF:
+        return today
+
+    # Before cut-off, weekend, or holiday → fall back to previous trading day
+    return calendar.previous_trading_day(today, inclusive=False)
 
 
 _DAY_NAMES = [
