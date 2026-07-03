@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pybhav"
-version = "0.1.0"
+version = "0.0.1"
 description = "Download NSE bhavcopy (end-of-day market data) for Indian equities and derivatives"
 readme = "README.md"
 license = { text = "MIT" }
