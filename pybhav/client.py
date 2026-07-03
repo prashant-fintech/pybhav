@@ -14,6 +14,7 @@ publish times — it only orchestrates the pipeline.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Iterator
@@ -26,6 +27,7 @@ from .fetcher import NSEHttpFetcher
 from .holidays import NSEHolidayCalendar, nse_calendar
 from .parser import NSECsvParser
 from .protocols import (
+    AsyncBhavcopFetcher,
     BhavcopCache,
     BhavcopCalendar,
     BhavcopFetcher,
@@ -60,6 +62,9 @@ class NSEBhavcopy:
                    :class:`~pybhav.protocols.BhavcopCalendar`.
         schedule:  Override the publish-time schedule with any
                    :class:`~pybhav.protocols.BhavcopSchedule`.
+        async_fetcher: Override the async HTTP layer with any
+                   :class:`~pybhav.protocols.AsyncBhavcopFetcher`. If omitted,
+                   will lazily instantiate the default if httpx is installed.
     """
 
     def __init__(
@@ -73,6 +78,7 @@ class NSEBhavcopy:
         parser: BhavcopParser | None = None,
         calendar: BhavcopCalendar | None = None,
         schedule: BhavcopSchedule | None = None,
+        async_fetcher: AsyncBhavcopFetcher | None = None,
     ):
         self._cache: BhavcopCache = cache or (
             FileCache(cache_dir) if cache_dir else NullCache()
@@ -83,6 +89,7 @@ class NSEBhavcopy:
         self._parser: BhavcopParser = parser or NSECsvParser()
         self._calendar: BhavcopCalendar = calendar or nse_calendar
         self._schedule: BhavcopSchedule = schedule or nse_schedule
+        self._async_fetcher: AsyncBhavcopFetcher | None = async_fetcher
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -93,6 +100,22 @@ class NSEBhavcopy:
             return self._cache.get(segment, dt)
         data = self._fetcher.fetch(segment, dt)
         self._cache.put(segment, dt, data)
+        return data
+
+    async def _async_load(self, segment: str, dt: date) -> bytes:
+        if self._cache.has(segment, dt):
+            # File I/O is usually fast enough, but wrap in thread to be safe
+            return await asyncio.to_thread(self._cache.get, segment, dt)
+
+        if self._async_fetcher is None:
+            from .async_fetcher import AsyncNSEHttpFetcher
+            # Use same retry/timeout as the synchronous fetcher by default
+            retries = getattr(self._fetcher, "_retries", 3)
+            timeout = getattr(self._fetcher, "_timeout", 30)
+            self._async_fetcher = AsyncNSEHttpFetcher(retries=retries, timeout=timeout)
+
+        data = await self._async_fetcher.fetch(segment, dt)
+        await asyncio.to_thread(self._cache.put, segment, dt, data)
         return data
 
     # ------------------------------------------------------------------
@@ -163,6 +186,59 @@ class NSEBhavcopy:
             except BhavcopNotAvailable:
                 if not skip_errors:
                     raise
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+    async def async_get(self, dt: date | str, segment: str = "CM") -> pd.DataFrame:
+        """Asynchronously download bhavcopy and return as a DataFrame.
+
+        Requires the ``[async]`` extra to be installed.
+        """
+        dt = _parse_date(dt)
+        _check_trading_day(dt, self._calendar)
+        data = await self._async_load(segment, dt)
+        # Parse CSV in a separate thread so we don't block the async event loop
+        return await asyncio.to_thread(self._parser.parse, data)
+
+    async def async_get_range(
+        self,
+        start: date | str,
+        end: date | str,
+        segment: str = "CM",
+        skip_errors: bool = True,
+        concurrency: int = 5,
+    ) -> pd.DataFrame:
+        """Asynchronously download bhavcopy for a date range and return a combined DataFrame.
+
+        Downloads files concurrently to vastly speed up historical data fetching.
+
+        Args:
+            start:       Start date (inclusive).
+            end:         End date (inclusive).
+            segment:     Bhavcopy segment.
+            skip_errors: Silently skip dates where data is unavailable.
+            concurrency: Maximum number of simultaneous downloads. Defaults to 5
+                         to prevent being IP-banned by the NSE.
+
+        Requires the ``[async]`` extra to be installed.
+        """
+        start, end = _parse_date(start), _parse_date(end)
+        sem = asyncio.Semaphore(concurrency)
+
+        async def fetch_one(dt: date) -> pd.DataFrame | None:
+            async with sem:
+                try:
+                    df = await self.async_get(dt, segment=segment)
+                    df["_date"] = dt
+                    return df
+                except BhavcopNotAvailable:
+                    if not skip_errors:
+                        raise
+                    return None
+
+        tasks = [fetch_one(dt) for dt in _date_range(start, end)]
+        results = await asyncio.gather(*tasks)
+
+        frames = [r for r in results if r is not None]
         return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
     def download(

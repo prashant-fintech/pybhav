@@ -7,7 +7,8 @@ import time
 import zipfile
 from datetime import date
 
-import requests
+from curl_cffi import requests
+from curl_cffi.requests import errors
 
 from .exceptions import BhavcopNotAvailable, DownloadError
 from .protocols import BhavcopFetcher
@@ -76,7 +77,7 @@ class NSEHttpFetcher(BhavcopFetcher):
                 return self._extractor.extract(resp.content, url)
             except BhavcopNotAvailable:
                 raise
-            except requests.RequestException as exc:
+            except errors.RequestsError as exc:
                 if attempt == self._retries:
                     raise DownloadError(
                         f"Download failed after {self._retries} attempts: {exc}"
